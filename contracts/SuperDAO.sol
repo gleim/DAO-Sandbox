@@ -23,6 +23,7 @@ to automate organizational governance and decision-making.
 
 import "./TokenCreation.sol";
 import "./ManagedAccount.sol";
+import "./SubDAO.sol";
 
 contract SuperDAOInterface {
     // Proposal Type enumeration: standard proposal, split SuperDAO, or spawn a SubDAO
@@ -97,7 +98,7 @@ contract SuperDAOInterface {
 
     // Contract that is able to create a new DAO (with the same code as
     // this one), used for splits and subDAOs
-    DAO_Creator public daoCreator;
+    SuperDAO_Creator public daoCreator;
 
     // A proposal with `proposalType == ProposalType.Standard` represents a transaction
     // to be issued by this SuperDAO
@@ -387,7 +388,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
 
     function SuperDAO(
         address _curator,
-        DAO_Creator _daoCreator,
+        SuperDAO_Creator _daoCreator,
         uint _proposalDeposit,
         uint _minTokensToCreate,
         uint _closingTime,
@@ -483,7 +484,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
         p.open = true;
         //p.proposalPassed = False; // that's default
         p.proposalType = _proposalType;
-        if (_newCurator)
+        if (_proposalType == ProposalType.Split)
             p.splitData.length++;
         p.creator = msg.sender;
         p.proposalDeposit = msg.value;
@@ -926,7 +927,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
     }
 }
 
-contract DAO_Creator {
+contract SuperDAO_Creator {
     function createDAO(
         address _curator,
         uint _proposalDeposit,
@@ -936,24 +937,7 @@ contract DAO_Creator {
 
         return new SuperDAO(
             _curator,
-            DAO_Creator(this),
-            _proposalDeposit,
-            _minTokensToCreate,
-            _closingTime,
-            msg.sender
-        );
-    }
-
-    function createSubDAO(
-        address _curator,
-        uint _proposalDeposit,
-        uint _minTokensToCreate,
-        uint _closingTime
-    ) returns (SubDAO _newDAO) {
-
-        return new SubDAO(
-            _curator,
-            DAO_Creator(this),
+            SuperDAO_Creator(this),
             _proposalDeposit,
             _minTokensToCreate,
             _closingTime,

@@ -131,7 +131,7 @@ contract SubDAOInterface {
         // Proposal Id
         uint proposalId;
         // The new Anchor contract created
-        Anchor newAnchor;
+        //Anchor newAnchor;
     }
 
     // Used to restrict access to certain functions to only DAO Token Holders
@@ -182,7 +182,7 @@ contract SubDAOInterface {
         uint _amount,
         string _description,
         bytes _transactionData,
-        uint _debatingPeriod,
+        uint _debatingPeriod
     ) onlyTokenholders returns (uint _proposalID);
 
     /// @notice Check that the proposal with the ID `_proposalID` matches the
