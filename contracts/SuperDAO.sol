@@ -25,6 +25,8 @@ import "./TokenCreation.sol";
 import "./ManagedAccount.sol";
 
 contract SuperDAOInterface {
+    // Proposal Type enumeration: standard proposal, split SuperDAO, or spawn a SubDAO
+    enum ProposalType {Standard, Split, Spawn}
 
     // The amount of days for which people who try to participate in the
     // creation by calling the fallback function will still get their ether back
@@ -33,8 +35,12 @@ contract SuperDAOInterface {
     uint constant minProposalDebatePeriod = 2 weeks;
     // The minimum debate period that a split proposal can have
     uint constant minSplitDebatePeriod = 1 weeks;
+    // The minimum debate period that a spawn proposal can have
+    uint constant minSpawnDebatePeriod = 1 days;
     // Period of days inside which it's possible to execute a SuperDAO split
     uint constant splitExecutionPeriod = 27 days;
+    // Period of days inside which it's possible to execute a SuperDAO split
+    uint constant spawnExecutionPeriod = 3 days;
     // Period of time after which the minimum Quorum is halved
     uint constant quorumHalvingPeriod = 25 weeks;
     // Period after which a proposal is closed
@@ -93,13 +99,14 @@ contract SuperDAOInterface {
     // this one), used for splits and subDAOs
     DAO_Creator public daoCreator;
 
-    // A proposal with `newCurator == false` represents a transaction
+    // A proposal with `proposalType == ProposalType.Standard` represents a transaction
     // to be issued by this SuperDAO
-    // A proposal with `newCurator == true` represents a SuperDAO split
+    // A proposal with `proposalType == ProposalType.Split` represents a SuperDAO split
+    // A proposal with `proposalType == ProposalType.Spawn` represents a SubDAO spawn
     struct Proposal {
-        // The address where the `amount` will go to if the proposal is accepted
-        // or if `newCurator` is true, the proposed Curator of
-        // the new SuperDAO).
+        // The address where the `amount` will go to if Standard proposal and the proposal is accepted
+        // The proposed Curator of the new SuperDAO if Split proposal
+        // The proposed Curator of the new SubDAO if Spawn proposal
         address recipient;
         // The amount to transfer to `recipient` if the proposal is accepted.
         uint amount;
@@ -117,8 +124,8 @@ contract SuperDAOInterface {
         // Deposit in wei the creator added when submitting their proposal. It
         // is taken from the msg.value of a newProposal call.
         uint proposalDeposit;
-        // True if this proposal is to assign a new Curator
-        bool newCurator;
+        // type of new proposal, Split and Spawn assign a new Curator
+        ProposalType proposalType;
         // Data needed for splitting the SuperDAO
         SplitData[] splitData;
         // Number of Tokens in favor of the proposal
@@ -133,7 +140,7 @@ contract SuperDAOInterface {
         address creator;
     }
 
-    // Used only in the case of a newCurator proposal.
+    // Used only in the case of a Split proposal.
     struct SplitData {
         // The balance of the current SuperDAO minus the deposit at the time of split
         uint splitBalance;
@@ -143,6 +150,18 @@ contract SuperDAOInterface {
         uint rewardToken;
         // The new SuperDAO contract created at the time of split.
         SuperDAO newDAO;
+    }
+
+    // Used only in the case of a Spawn proposal.
+    struct SpawnData {
+        // The balance of the current SuperDAO minus the deposit at the time of split
+        uint spawnBalance;
+        // The total amount of DAO Tokens in existence at the time of split.
+        uint totalSupply;
+        // Amount of Reward Tokens owned by the SubDAO at the time of split.
+        uint rewardToken;
+        // The new SubDAO contract created at the time of split.
+        SubDAO newDAO;
     }
 
     // Used to restrict access to certain functions to only DAO Token Holders
@@ -182,16 +201,17 @@ contract SuperDAOInterface {
 
     /// @notice `msg.sender` creates a proposal to send `_amount` Wei to
     /// `_recipient` with the transaction data `_transactionData`. If
-    /// `_newCurator` is true, then this is a proposal that splits the
-    /// SuperDAO and sets `_recipient` as the new SuperDAO's Curator.
+    /// `_proposalType` is ProposalType.Split, then this is a proposal that splits the
+    /// SuperDAO and sets `_recipient` as the new SuperDAO's Curator. If
+    /// `_proposalType` is ProposalType.Spawn, then this is a proposal that spawns a
+    /// SubDAO and sets `_recipient` as the new SubDAO's Curator.
     /// @param _recipient Address of the recipient of the proposed transaction
     /// @param _amount Amount of wei to be sent with the proposed transaction
     /// @param _description String describing the proposal
     /// @param _transactionData Data of the proposed transaction
     /// @param _debatingPeriod Time used for debating a proposal, at least 2
     /// weeks for a regular proposal, 10 days for new Curator proposal
-    /// @param _newCurator Bool defining whether this proposal is about
-    /// a new Curator or not
+    /// @param _proposalType Enumerated type defining whether this proposal is Standard, Split or Spawn type
     /// @return The proposal ID. Needed for voting on the proposal
     function newProposal(
         address _recipient,
@@ -199,7 +219,7 @@ contract SuperDAOInterface {
         string _description,
         bytes _transactionData,
         uint _debatingPeriod,
-        bool _newCurator
+        ProposalType _proposalType
     ) onlyTokenholders returns (uint _proposalID);
 
     /// @notice Check that the proposal with the ID `_proposalID` matches the
@@ -253,12 +273,27 @@ contract SuperDAOInterface {
         address _newCurator
     ) returns (bool _success);
 
+    /// @notice ATTENTION! I confirm to move my remaining ether to a new SubDAO
+    /// with `_newCurator` as the new Curator, as has been
+    /// proposed in proposal `_proposalID`. This will *not* burn my tokens. 
+    /// This *can* be undone if there exist no outstanding contracts. 
+    /// This action will spawn a SubDAO from the SuperDAO with *the same* underlying token.
+    /// @param _proposalID The proposal ID
+    /// @param _newCurator The new Curator of the new SubDAO
+    /// @dev This function, when called for the first time for this proposal,
+    /// will spawn a new SubDAO ?)and send the sender's portion of the remaining
+    /// ether and Reward Tokens to the new SuperDAO. It will *not* burn the DAO Tokens
+    /// of the sender.
+    function spawnSubDAO(
+        uint _proposalID,
+        address _newCurator
+    ) returns (bool _success);
+
     /// @dev can only be called by the SuperDAO itself through a proposal
     /// updates the contract of the SuperDAO by sending all ether and rewardTokens
     /// to the new SuperDAO. The new SuperDAO needs to be approved by the Curator
     /// @param _newContract the address of the new contract
     function newContract(address _newContract);
-
 
     /// @notice Add a new possible recipient `_recipient` to the whitelist so
     /// that the SuperDAO can send transactions to them (using proposals)
@@ -266,7 +301,6 @@ contract SuperDAOInterface {
     /// @dev Can only be called by the current Curator
     /// @return Whether successful or not
     function changeAllowedRecipients(address _recipient, bool _allowed) external returns (bool _success);
-
 
     /// @notice Change the minimum deposit required to submit a proposal
     /// @param _proposalDeposit The new proposal deposit
@@ -333,7 +367,7 @@ contract SuperDAOInterface {
         uint indexed proposalID,
         address recipient,
         uint amount,
-        bool newCurator,
+        ProposalType proposalType,
         string description
     );
     event Voted(uint indexed proposalID, bool position, address indexed voter);
@@ -396,19 +430,27 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
         string _description,
         bytes _transactionData,
         uint _debatingPeriod,
-        bool _newCurator
+        ProposalType _proposalType
     ) onlyTokenholders returns (uint _proposalID) {
 
-        // Sanity check
-        if (_newCurator && (
+        // Sanity check for SplitDAO proposals
+        if (_proposalType == ProposalType.Split && (
             _amount != 0
             || _transactionData.length != 0
             || _recipient == curator
             || msg.value > 0
             || _debatingPeriod < minSplitDebatePeriod)) {
             throw;
+        // Sanity check for SpawnDAO proposals
+        } else if (_proposalType == ProposalType.Spawn && (
+            _amount != 0
+            || _transactionData.length != 0
+            || _recipient == curator
+            || msg.value > 0
+            || _debatingPeriod < minSpawnDebatePeriod)) {
+            throw;
         } else if (
-            !_newCurator
+            _proposalType == ProposalType.Standard
             && (!isRecipientAllowed(_recipient) || (_debatingPeriod <  minProposalDebatePeriod))
         ) {
             throw;
@@ -419,7 +461,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
 
         if (!isFueled
             || now < closingTime
-            || (msg.value < proposalDeposit && !_newCurator)) {
+            || (msg.value < proposalDeposit && _proposalType == ProposalType.Standard)) {
 
             throw;
         }
@@ -440,7 +482,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
         p.votingDeadline = now + _debatingPeriod;
         p.open = true;
         //p.proposalPassed = False; // that's default
-        p.newCurator = _newCurator;
+        p.proposalType = _proposalType;
         if (_newCurator)
             p.splitData.length++;
         p.creator = msg.sender;
@@ -452,7 +494,7 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
             _proposalID,
             _recipient,
             _amount,
-            _newCurator,
+            _proposalType,
             _description
         );
     }
@@ -508,10 +550,15 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
     ) noEther returns (bool _success) {
 
         Proposal p = proposals[_proposalID];
+        uint waitPeriod;
 
-        uint waitPeriod = p.newCurator
-            ? splitExecutionPeriod
-            : executeProposalPeriod;
+        if (p.proposalType == ProposalType.Split)
+            waitPeriod = splitExecutionPeriod;
+        else if (p.proposalType == ProposalType.Spawn)
+            waitPeriod = spawnExecutionPeriod;
+        else  // if (p.proposalType == ProposalType.Standard)
+            waitPeriod = executeProposalPeriod;
+
         // If we are over deadline and waiting period, assert proposal is closed
         if (p.open && now > p.votingDeadline + waitPeriod) {
             closeProposal(_proposalID);
@@ -610,8 +657,8 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
             || now > p.votingDeadline + splitExecutionPeriod
             // Does the new Curator address match?
             || p.recipient != _newCurator
-            // Is it a new curator proposal?
-            || !p.newCurator
+            // Is it a new Split proposal?
+            || p.ProposalType != ProposalType.Split
             // Have you voted for this split?
             || !p.votedYes[msg.sender]
             // Did you already vote on another proposal?
@@ -848,6 +895,11 @@ contract SuperDAO is SuperDAOInterface, Token, TokenCreation {
         return daoCreator.createDAO(_newCurator, 0, 0, now + splitExecutionPeriod);
     }
 
+    function spawnNewSubDAO(address _newCurator) internal returns (SubDAO _newDAO) {
+        NewCurator(_newCurator);
+        return daoCreator.createSubDAO(_newCurator, 0, 0, now + splitExecutionPeriod);
+    }
+
     function numberOfProposals() constant returns (uint _numberOfProposals) {
         // Don't count index 0. It's used by isBlocked() and exists from start
         return proposals.length - 1;
@@ -883,6 +935,23 @@ contract DAO_Creator {
     ) returns (SuperDAO _newDAO) {
 
         return new SuperDAO(
+            _curator,
+            DAO_Creator(this),
+            _proposalDeposit,
+            _minTokensToCreate,
+            _closingTime,
+            msg.sender
+        );
+    }
+
+    function createSubDAO(
+        address _curator,
+        uint _proposalDeposit,
+        uint _minTokensToCreate,
+        uint _closingTime
+    ) returns (SubDAO _newDAO) {
+
+        return new SubDAO(
             _curator,
             DAO_Creator(this),
             _proposalDeposit,
