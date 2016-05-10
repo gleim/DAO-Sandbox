@@ -39,7 +39,7 @@ contract SuperDAOInterface {
     uint constant minSpawnDebatePeriod = 1 days;
     // Period of days inside which it's possible to execute a SuperDAO split
     uint constant splitExecutionPeriod = 27 days;
-    // Period of days inside which it's possible to execute a SuperDAO split
+    // Period of days inside which it's possible to spawn a SubDAO
     uint constant spawnExecutionPeriod = 3 days;
     // Period of time after which the minimum Quorum is halved
     uint constant quorumHalvingPeriod = 25 weeks;
