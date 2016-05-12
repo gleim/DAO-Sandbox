@@ -193,9 +193,12 @@ contract DAO is DAOInterface, Token, TokenCreation {
 
         Proposal p = proposals[_proposalID];
 
-        uint waitPeriod = p.newCurator
-            ? splitExecutionPeriod
-            : executeProposalPeriod;
+        uint waitPeriod;
+        if (p.newCurator)
+            waitPeriod = splitExecutionPeriod;
+        else
+            waitPeriod = executeProposalPeriod;
+
         // If we are over deadline and waiting period, assert proposal is closed
         if (p.open && now > p.votingDeadline + waitPeriod) {
             closeProposal(_proposalID);
