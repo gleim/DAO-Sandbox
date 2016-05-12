@@ -28,7 +28,7 @@ along with the DAO.  If not, see <http://www.gnu.org/licenses/>.
  * for example.
 */
 
-import "./TokenCreation.sol";
+import "TokenCreation";
 
 contract DAOTokenCreationProxyTransferer {
     address public owner;

@@ -21,6 +21,8 @@ Standard smart contract for a Decentralized Autonomous Organization (DAO)
 to automate organizational governance and decision-making.
 */
 
+import "DAO";
+
 contract DAO_Creator {
     function createDAO(
         address _curator,

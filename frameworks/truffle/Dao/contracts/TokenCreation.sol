@@ -22,8 +22,8 @@ along with the DAO.  If not, see <http://www.gnu.org/licenses/>.
  * Token Creation parameters
 */
 
-import "./Token.sol";
-import "./ManagedAccount.sol";
+import "Token";
+import "ManagedAccount";
 
 contract TokenCreationInterface {
 
