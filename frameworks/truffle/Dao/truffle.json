@@ -10,7 +10,7 @@
     "images/": "images/"
   },
   "deploy": [
-    "DAO"
+    "AlexandriaDAO"
   ],
   "rpc": {
     "host": "localhost",
