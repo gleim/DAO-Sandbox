@@ -2,9 +2,8 @@
 
 
 ## What is it?
-A Standard DAO (Decentralized Autonomous Organization) framework written in Solidity to run on the Ethereum blockchain. 
+A Customized DAO (Decentralized Autonomous Organization) framework written in Solidity to run on the Ethereum blockchain. 
 
-Feel free to reuse to create your own Decentralized Autonomous Organization using this framework.
 
 **Reference:** *"Decentralized autonomous organization to automate governance" -* [White Paper](https://download.slock.it/public/DAO/WhitePaper.pdf) - [Primer](https://blog.slock.it/a-primer-to-the-decentralized-autonomous-organization-dao-69fb125bd3cd)
 
@@ -26,7 +25,7 @@ A very active community can be found on  [slack](http://slack.slock.it:3000)
 
 
 
-## Overview
+## Standard DAO Framework Overview
 
 Our Standard DAO Framework allows people to create Decentralized Autonomous Organizations (DAOs) governed by the code in this repository written immutably to the blockchain.
 
